@@ -12,7 +12,7 @@ For this exercise, please try to reproduce the results from Study 1 of the assoc
 
 #### Methods summary: 
 
-In study 1, 150 introductory psychology students were randomly assigned to a "real" or a "hypothetical" condition. In the real condition, participants believed that they would have a real opportuniy to connect with potential romantic partners. In the hypothetical condition, participants simply imagined that they are on a date. All participants were required to select their favorite profile and answer whether they were willing to exchange contact information. 
+In study 1, 150 introductory psychology students were randomly assigned to a "real" or a "hypothetical" condition. In the real condition, participants believed that they would have a real opportunity to connect with potential romantic partners. In the hypothetical condition, participants simply imagined that they are on a date. All participants were required to select their favorite profile and answer whether they were willing to exchange contact information. 
 
 ------
 
@@ -45,7 +45,10 @@ library(readxl) # import excel files
 
 ```{r}
 # Just Study 1
-d <- read_sav('data/Empathy Gap Study 1 data.sav')
+s1_empathy_d <- read_sav('data/Empathy Gap Study 1 data.sav')
+
+# Condition: 0 = hypothetical; 1 = real
+# Exchange Info: 1 = Yes; 2 = No
 ```
 
 # Step 3: Tidy data
@@ -63,6 +66,12 @@ d <- read_sav('data/Empathy Gap Study 1 data.sav')
 ```{r}
 # reproduce the above results here
 
+descriptives <- s1_empathy_d %>% 
+  group_by(condition) %>% 
+  count(exchangeinfo) %>% 
+  mutate(prop=n/sum(n))
+
+descriptives
 ```
 
 ## Inferential statistics
@@ -74,20 +83,21 @@ Hint: if you are using the function chisq.test(), make sure to set the continuit
 ```{r}
 # reproduce the above results here
 
+chisq.test(x=s1_empathy_d$condition, y=s1_empathy_d$exchangeinfo, correct=FALSE)
 ```
 
 # Step 5: Reflection
 
 Were you able to reproduce the results you attempted to reproduce? If not, what part(s) were you unable to reproduce?
 
-> ANSWER HERE
+> Yes, I was able to reproduce the results. 
 
 How difficult was it to reproduce your results? 
 
-> ANSWER HERE
+> It took me a while to realize the required columns for the analysis were in the final columns of the dataset. Once I located them it was easy to reproduce the results. 
 
 What aspects made it difficult? What aspects made it easy?
 
-> ANSWER HERE
+> The hardest part was locating the necessary columns and mapping it onto the procedure of the experiment. The analysis itself was quite simple, so it wasn't that hard to reproduce. 
 
 

@@ -15,6 +15,8 @@ library(tidyverse)
 library(here)
 library(janitor)
 library(metafor)
+library(rstatix)
+library(ggdist)
 d <- read_csv(here("data","Study1A_prepared.csv"))
 ```
 First let's learn about the dataset. 
@@ -40,15 +42,20 @@ Let's start with the sunk cost stimuli:
 
 ```{r}
 sunk_means <- d |>
-  group_by(...) |>
-  summarise(...)
+  group_by(panel) |>
+  get_summary_stats(num_sunk_cost, type="mean_se")
+
+sunk_means
 
 ```
 
 Now let's make a nice plot of site variation.
 
 ```{r}
-ggplot(...) 
+ggplot(sunk_means, aes(x=panel, y=mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se)) +
+  ylim(c(1, 9))
 ```
 There is indeed heterogeneity!
 
@@ -60,8 +67,55 @@ Let's start by looking at the participant level. First we'll look at the CRT and
 My hypothesis is that the BNT is the Berlin numeracy test. 
 
 ```{r}
-ggplot(d, aes(...)) + 
-  ...
+ggplot(d, aes(x=as.factor(bnt), y=num_sunk_cost)) +
+  geom_boxplot() 
+
+ggplot(d, aes(x = sunk_condition, y = num_sunk_cost, fill = as.factor(bnt))) +
+  # # Half violin (density)
+  # stat_halfeye(
+  #   adjust = 0.5,
+  #   width = 0.6,
+  #   .width = 0,
+  #   justification = -0.3,
+  #   point_colour = NA
+  # ) +
+  # Boxplot
+  geom_boxplot(
+    width = 0.2,
+    outlier.shape = NA,
+    alpha = 0.5
+  ) +
+  # # Jittered points ("rain")
+  # geom_jitter(
+  #   width = 0.1,
+  #   alpha = 0.3
+  # ) +
+  theme_minimal() +
+  theme()
+
+
+ggplot(d, aes(x = sunk_condition, y = num_sunk_cost, fill = as.factor(crt_score))) +
+  # # Half violin (density)
+  # stat_halfeye(
+  #   adjust = 0.5,
+  #   width = 0.6,
+  #   .width = 0,
+  #   justification = -0.3,
+  #   point_colour = NA
+  # ) +
+  # Boxplot
+  geom_boxplot(
+    width = 0.2,
+    outlier.shape = NA,
+    alpha = 0.5
+  ) +
+  # # Jittered points ("rain")
+  # geom_jitter(
+  #   width = 0.1,
+  #   alpha = 0.3
+  # ) +
+  theme_minimal() +
+  theme()
 ```
 
 # Panel-level analysis
@@ -73,12 +127,12 @@ This part is a little tricky so I've included it. (There's probably a better way
 ```{r}
 sunk_effect <- d |>
   group_by(panel) |>
-  summarise(m1i = mean(num_sunk_cost[sunk_condition == "FREE"]), 
-            m2i = mean(num_sunk_cost[sunk_condition == "PAID"]), 
-            sd1i = sd(num_sunk_cost[sunk_condition == "FREE"]),
-            sd2i = sd(num_sunk_cost[sunk_condition == "PAID"]), 
-            n1i = sum(sunk_condition == "FREE"),
-            n2i = sum(sunk_condition == "PAID"),
+  summarise(m1i = mean(num_sunk_cost[sunk_condition == "PAID"]), 
+            m2i = mean(num_sunk_cost[sunk_condition == "FREE"]), 
+            sd1i = sd(num_sunk_cost[sunk_condition == "PAID"]),
+            sd2i = sd(num_sunk_cost[sunk_condition == "FREE"]), 
+            n1i = sum(sunk_condition == "PAID"),
+            n2i = sum(sunk_condition == "FREE"),
             crt_mean = mean(crt_score),
             bnt_mean = mean(bnt),
             ed_mean = mean(num_edu))
@@ -92,14 +146,45 @@ sunk_effect <- summary(metafor::escalc(data = sunk_effect, measure = "SMD",
 Effect size plot. 
 
 ```{r}
-ggplot(sunk_effect, aes(...)) + 
-  ...
-
+ggplot(sunk_effect, aes(y = panel, x = yi)) +
+  geom_vline(xintercept = 0, color = "grey70") +
+  geom_errorbarh(aes(xmin = yi-sei, xmax = yi+sei), height = 0.25, linewidth = 0.8) +
+  geom_point(size = 3.5, aes(color=panel)) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    axis.title.y = element_blank(),
+    legend.position="none"
+  ) +
+  labs(x = "Effect size (95% CI)") 
 ```
 
 How would we make this figure across multiple moderators? 
 
 ```{r}
-...
+sunk_effect <- d |>
+  mutate(bnt_bucket = as.factor(bnt)) %>% 
+  group_by(panel, bnt_bucket) |>
+  summarise(m1i = mean(num_sunk_cost[sunk_condition == "PAID"]), 
+            m2i = mean(num_sunk_cost[sunk_condition == "FREE"]), 
+            sd1i = sd(num_sunk_cost[sunk_condition == "PAID"]),
+            sd2i = sd(num_sunk_cost[sunk_condition == "FREE"]), 
+            n1i = sum(sunk_condition == "PAID"),
+            n2i = sum(sunk_condition == "FREE"),
+            crt_mean = mean(crt_score),
+            bnt_mean = mean(bnt),
+            ed_mean = mean(num_edu))
+
+sunk_effect <- summary(metafor::escalc(data = sunk_effect, measure = "SMD", 
+                                   m1i = m1i, m2i = m2i, 
+                                   sd1i = sd1i, sd2i = sd2i, 
+                                   n1i = n1i, n2i = n2i))
+```
+
+```{r}
+ggplot(sunk_effect, aes(x=bnt_bucket, y=yi, group=panel, color=panel)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=ci.lb, ymax=ci.ub), width=0)
 ```
 
